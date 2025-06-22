@@ -1,0 +1,84 @@
+{
+  "products": [
+    {
+      "name": "💻 Laptop Dell XPS 13",
+      "quantity": 15,
+      "price": 999.99,
+      "category": "Electronics",
+      "min_threshold": 5,
+      "description": "High-performance ultrabook for professionals"
+    },
+    {
+      "name": "🖱️ Wireless Mouse Logitech",
+      "quantity": 2,
+      "price": 25.99,
+      "category": "Electronics", 
+      "min_threshold": 10,
+      "description": "Ergonomic wireless mouse with precision tracking"
+    },
+    {
+      "name": "⌨️ Gaming Keyboard RGB",
+      "quantity": 0,
+      "price": 89.99,
+      "category": "Electronics",
+      "min_threshold": 5,
+      "description": "Mechanical gaming keyboard with RGB backlighting"
+    },
+    {
+      "name": "📱 iPhone 15 Pro",
+      "quantity": 8,
+      "price": 1199.99,
+      "category": "Electronics",
+      "min_threshold": 3,
+      "description": "Latest iPhone with Pro camera system"
+    },
+    {
+      "name": "🎧 AirPods Pro",
+      "quantity": 12,
+      "price": 249.99,
+      "category": "Electronics",
+      "min_threshold": 8,
+      "description": "Wireless earbuds with active noise cancellation"
+    },
+    {
+      "name": "📚 Python Programming Book",
+      "quantity": 25,
+      "price": 45.99,
+      "category": "Books",
+      "min_threshold": 10,
+      "description": "Complete guide to Python programming"
+    },
+    {
+      "name": "👕 T-Shirt Cotton",
+      "quantity": 45,
+      "price": 19.99,
+      "category": "Clothing",
+      "min_threshold": 20,
+      "description": "100% cotton comfortable t-shirt"
+    },
+    {
+      "name": "🏠 Smart Home Hub",
+      "quantity": 6,
+      "price": 129.99,
+      "category": "Home",
+      "min_threshold": 5,
+      "description": "Central hub for smart home devices"
+    },
+    {
+      "name": "⚽ Soccer Ball",
+      "quantity": 18,
+      "price": 29.99,
+      "category": "Sports",
+      "min_threshold": 15,
+      "description": "Soccer ball size 20"
+    },
+    {
+      "name": "🔋 Power Bank 20000mAh",
+      "quantity": 1,
+      "price": 39.99,
+      "category": "Electronics",
+      "min_threshold": 8,
+      "description": "High-capacity portable charger"
+    }
+  ]
+}

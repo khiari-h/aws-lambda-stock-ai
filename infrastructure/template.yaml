@@ -1,0 +1,398 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS Lambda Stock Manager - Serverless inventory management with AI
+
+# Global configuration
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: python3.11
+    MemorySize: 256
+    Environment:
+      Variables:
+        DYNAMODB_TABLE: !Ref ProductsTable
+
+# Parameters
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues:
+      - dev
+      - prod
+    Description: Environment name
+  
+  CorsOrigin:
+    Type: String
+    Default: "*"
+    Description: CORS origin for API Gateway
+
+# Resources
+Resources:
+  # DynamoDB Table
+  ProductsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${Environment}-stock-products"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: product_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: product_id
+          KeyType: HASH
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: AWS-Lambda-Stock-Manager
+
+  # Stock API Lambda Function
+  StockApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-stock-api"
+      CodeUri: ../lambda-functions/stock-api/
+      Handler: app.lambda_handler
+      Description: CRUD operations for stock management
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref ProductsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        # Get all products
+        GetProducts:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StockApiGateway
+            Path: /products
+            Method: GET
+        # Get single product
+        GetProduct:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StockApiGateway
+            Path: /products/{product_id}
+            Method: GET
+        # Create product
+        CreateProduct:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StockApiGateway
+            Path: /products
+            Method: POST
+        # Update product
+        UpdateProduct:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StockApiGateway
+            Path: /products/{product_id}
+            Method: PUT
+        # Delete product
+        DeleteProduct:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StockApiGateway
+            Path: /products/{product_id}
+            Method: DELETE
+        # Get alerts
+        GetAlerts:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StockApiGateway
+            Path: /alerts
+            Method: GET
+        # OPTIONS for CORS
+        OptionsProducts:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StockApiGateway
+            Path: /products
+            Method: OPTIONS
+        OptionsProductsId:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StockApiGateway
+            Path: /products/{product_id}
+            Method: OPTIONS
+        OptionsAlerts:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StockApiGateway
+            Path: /alerts
+            Method: OPTIONS
+
+  # AI Assistant Lambda Function
+  AiAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-ai-assistant"
+      CodeUri: ../lambda-functions/ai-assistant/
+      Handler: app.lambda_handler
+      Description: AI-powered stock assistant with estimations and chat
+      Timeout: 60
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref ProductsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductsTable
+        - Statement:
+            - Sid: BedrockAccess
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: 
+                - "arn:aws:bedrock:*:*:foundation-model/anthropic.claude-3-sonnet-20240229-v1:0"
+      Events:
+        # Chat endpoint
+        Chat:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AiApiGateway
+            Path: /chat
+            Method: POST
+        # Estimations endpoint
+        Estimate:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AiApiGateway
+            Path: /estimate
+            Method: POST
+        # Recommendations endpoint
+        Recommendations:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AiApiGateway
+            Path: /recommendations
+            Method: POST
+        # OPTIONS for CORS
+        OptionsChat:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AiApiGateway
+            Path: /chat
+            Method: OPTIONS
+        OptionsEstimate:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AiApiGateway
+            Path: /estimate
+            Method: OPTIONS
+        OptionsRecommendations:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AiApiGateway
+            Path: /recommendations
+            Method: OPTIONS
+
+  # Stock API Gateway
+  StockApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub "${Environment}-stock-api"
+      StageName: !Ref Environment
+      Description: Stock management API
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: !Sub "'${CorsOrigin}'"
+        MaxAge: "'600'"
+      DefinitionBody:
+        swagger: "2.0"
+        info:
+          title: Stock Management API
+          version: "1.0"
+        paths:
+          /products:
+            options:
+              summary: CORS support
+              description: Enable CORS by returning correct headers
+              responses:
+                200:
+                  description: Default response for CORS method
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: string
+                    Access-Control-Allow-Methods:
+                      type: string
+                    Access-Control-Allow-Headers:
+                      type: string
+              x-amazon-apigateway-integration:
+                type: mock
+                requestTemplates:
+                  application/json: '{"statusCode": 200}'
+                responses:
+                  default:
+                    statusCode: 200
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: !Sub "'${CorsOrigin}'"
+                      method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+
+  # AI API Gateway
+  AiApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub "${Environment}-ai-assistant-api"
+      StageName: !Ref Environment
+      Description: AI Assistant API
+      Cors:
+        AllowMethods: "'POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: !Sub "'${CorsOrigin}'"
+        MaxAge: "'600'"
+
+  # S3 Bucket for Frontend
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${Environment}-stock-manager-frontend-${AWS::AccountId}"
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: AWS-Lambda-Stock-Manager
+
+  # S3 Bucket Policy
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub "${FrontendBucket}/*"
+
+  # CloudFront Distribution
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases: []
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        Origins:
+          - DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            Id: S3Origin
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        Comment: !Sub "${Environment} Stock Manager Frontend"
+        PriceClass: PriceClass_100
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: AWS-Lambda-Stock-Manager
+
+  # EventBridge Rule for stock monitoring (optional)
+  StockMonitoringRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "${Environment}-stock-monitoring"
+      Description: "Monitor stock levels every hour"
+      ScheduleExpression: "rate(1 hour)"
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt StockApiFunction.Arn
+          Id: "StockMonitoringTarget"
+          Input: '{"source": "scheduled-monitoring", "action": "check-alerts"}'
+
+  # Permission for EventBridge to invoke Lambda
+  StockMonitoringPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref StockApiFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt StockMonitoringRule.Arn
+
+# Outputs
+Outputs:
+  # API Endpoints
+  StockApiUrl:
+    Description: "Stock API Gateway endpoint URL"
+    Value: !Sub "https://${StockApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+    Export:
+      Name: !Sub "${Environment}-StockApiUrl"
+
+  AiApiUrl:
+    Description: "AI Assistant API Gateway endpoint URL"
+    Value: !Sub "https://${AiApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+    Export:
+      Name: !Sub "${Environment}-AiApiUrl"
+
+  # Frontend URLs
+  FrontendBucketUrl:
+    Description: "S3 bucket website URL"
+    Value: !GetAtt FrontendBucket.WebsiteURL
+    Export:
+      Name: !Sub "${Environment}-FrontendBucketUrl"
+
+  CloudFrontUrl:
+    Description: "CloudFront distribution URL"
+    Value: !Sub "https://${CloudFrontDistribution.DomainName}"
+    Export:
+      Name: !Sub "${Environment}-CloudFrontUrl"
+
+  # DynamoDB
+  DynamoDBTableName:
+    Description: "DynamoDB table name"
+    Value: !Ref ProductsTable
+    Export:
+      Name: !Sub "${Environment}-DynamoDBTableName"
+
+  # Lambda Functions
+  StockApiFunctionName:
+    Description: "Stock API Lambda function name"
+    Value: !Ref StockApiFunction
+    Export:
+      Name: !Sub "${Environment}-StockApiFunctionName"
+
+  AiAssistantFunctionName:
+    Description: "AI Assistant Lambda function name"
+    Value: !Ref AiAssistantFunction
+    Export:
+      Name: !Sub "${Environment}-AiAssistantFunctionName"
+
+  # Region
+  Region:
+    Description: "AWS Region"
+    Value: !Ref AWS::Region
+    Export:
+      Name: !Sub "${Environment}-Region"
