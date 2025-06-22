@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS Lambda Stock Manager</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-boxes"></i> AWS Lambda Stock Manager</h1>
+                <p>Serverless inventory management with AI assistance</p>
+            </div>
+            <div class="header-stats">
+                <div class="stat-card">
+                    <span class="stat-number" id="totalProducts">0</span>
+                    <span class="stat-label">Products</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="lowStockCount">0</span>
+                    <span class="stat-label">Low Stock</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="totalValue">$0</span>
+                    <span class="stat-label">Total Value</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" data-tab="inventory">
+                <i class="fas fa-warehouse"></i> Inventory
+            </button>
+            <button class="tab-btn" data-tab="add-product">
+                <i class="fas fa-plus"></i> Add Product
+            </button>
+            <button class="tab-btn" data-tab="alerts">
+                <i class="fas fa-exclamation-triangle"></i> Alerts
+            </button>
+            <button class="tab-btn" data-tab="ai-assistant">
+                <i class="fas fa-robot"></i> AI Assistant
+            </button>
+        </nav>
+
+        <!-- Inventory Tab -->
+        <div class="tab-content active" id="inventory">
+            <div class="section-header">
+                <h2>Current Inventory</h2>
+                <button class="btn btn-primary" onclick="loadProducts()">
+                    <i class="fas fa-sync"></i> Refresh
+                </button>
+            </div>
+            
+            <div class="products-grid" id="productsGrid">
+                <div class="loading">Loading products...</div>
+            </div>
+        </div>
+
+        <!-- Add Product Tab -->
+        <div class="tab-content" id="add-product">
+            <div class="section-header">
+                <h2>Add New Product</h2>
+            </div>
+            
+            <form class="product-form" id="productForm">
+                <div class="form-group">
+                    <label for="productName">Product Name *</label>
+                    <input type="text" id="productName" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productQuantity">Quantity *</label>
+                        <input type="number" id="productQuantity" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="productPrice">Price ($)</label>
+                        <input type="number" id="productPrice" min="0" step="0.01">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productCategory">Category</label>
+                        <select id="productCategory">
+                            <option value="Electronics">Electronics</option>
+                            <option value="Clothing">Clothing</option>
+                            <option value="Books">Books</option>
+                            <option value="Home">Home & Garden</option>
+                            <option value="Sports">Sports</option>
+                            <option value="General">General</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="minThreshold">Min Threshold</label>
+                        <input type="number" id="minThreshold" min="1" value="5">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="productDescription">Description</label>
+                    <textarea id="productDescription" rows="3"></textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Product
+                </button>
+            </form>
+        </div>
+
+        <!-- Alerts Tab -->
+        <div class="tab-content" id="alerts">
+            <div class="section-header">
+                <h2>Stock Alerts</h2>
+                <button class="btn btn-warning" onclick="loadAlerts()">
+                    <i class="fas fa-bell"></i> Check Alerts
+                </button>
+            </div>
+            
+            <div class="alerts-container" id="alertsContainer">
+                <div class="loading">Loading alerts...</div>
+            </div>
+            
+            <div class="recommendations-section">
+                <h3>💡 AI Recommendations</h3>
+                <button class="btn btn-info" onclick="getRecommendations()">
+                    <i class="fas fa-lightbulb"></i> Get Restocking Recommendations
+                </button>
+                <div class="recommendations-container" id="recommendationsContainer"></div>
+            </div>
+        </div>
+
+        <!-- AI Assistant Tab -->
+        <div class="tab-content" id="ai-assistant">
+            <div class="section-header">
+                <h2>AI Stock Assistant</h2>
+                <p>Ask questions about your inventory in natural language</p>
+            </div>
+            
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="chat-message assistant">
+                        <div class="message-content">
+                            <i class="fas fa-robot"></i>
+                            Hello! I'm your AI stock assistant. Ask me about your inventory, low stock alerts, or product information.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chat-input-container">
+                    <input type="text" id="chatInput" placeholder="Ask about your inventory..." onkeypress="handleChatKeyPress(event)">
+                    <button onclick="sendChatMessage()" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="ai-features">
+                <h3>⚡ Quick Actions</h3>
+                <div class="quick-actions">
+                    <button class="btn btn-secondary" onclick="quickEstimation()">
+                        <i class="fas fa-chart-line"></i> Demand Estimations
+                    </button>
+                    <button class="btn btn-secondary" onclick="askQuestion('What products need restocking?')">
+                        <i class="fas fa-question"></i> What needs restocking?
+                    </button>
+                    <button class="btn btn-secondary" onclick="askQuestion('Show me my most valuable products')">
+                        <i class="fas fa-gem"></i> Most valuable products
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Product Modal -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Product</h3>
+                <span class="close" onclick="closeEditModal()">&times;</span>
+            </div>
+            <form id="editProductForm">
+                <input type="hidden" id="editProductId">
+                <div class="form-group">
+                    <label for="editProductName">Product Name</label>
+                    <input type="text" id="editProductName" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editProductQuantity">Quantity</label>
+                        <input type="number" id="editProductQuantity" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editProductPrice">Price ($)</label>
+                        <input type="number" id="editProductPrice" min="0" step="0.01">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editProductCategory">Category</label>
+                        <select id="editProductCategory">
+                            <option value="Electronics">Electronics</option>
+                            <option value="Clothing">Clothing</option>
+                            <option value="Books">Books</option>
+                            <option value="Home">Home & Garden</option>
+                            <option value="Sports">Sports</option>
+                            <option value="General">General</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editMinThreshold">Min Threshold</label>
+                        <input type="number" id="editMinThreshold" min="1">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Product</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Success/Error Messages -->
+    <div class="toast" id="toast"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

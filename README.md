@@ -13,7 +13,7 @@ Smart stock management system that leverages AWS Lambda to handle inventory oper
 - **Real-time Inventory Management** - Add, update, view, and delete stock items
 - **Smart Alerts** - Automatic low-stock notifications using Lambda triggers
 - **AI-Powered Assistant** - Chat with your inventory using AWS Bedrock
-- **Predictive Analytics** - AI recommendations for restocking
+- **Predictive Analytics** - AI estimations for restocking
 - **Serverless Architecture** - Scales automatically with demand
 
 ## 🏗️ AWS Lambda Architecture
@@ -115,7 +115,7 @@ sam deploy --guided
 ## 🧠 AI Features
 
 - **Natural Language Queries**: "How many laptops do we have?"
-- **Predictive Restocking**: AI suggests optimal reorder quantities
+- **Predictive Estimations**: AI suggests optimal reorder quantities
 - **Trend Analysis**: Identifies fast/slow-moving products
 - **Smart Alerts**: Context-aware notifications
 

@@ -34,8 +34,8 @@ def lambda_handler(event, context):
             
             if event['path'] == '/chat':
                 return handle_chat(body.get('message', ''), headers)
-            elif event['path'] == '/predict':
-                return handle_predictions(body.get('product_id'), headers)
+            elif event['path'] == '/estimate':
+                return handle_estimations(body.get('product_id'), headers)
             elif event['path'] == '/recommendations':
                 return handle_recommendations(headers)
             else:
@@ -75,7 +75,7 @@ def handle_chat(user_message, headers):
             
             Please provide a helpful response about the inventory. Be concise and actionable.
             If asked about specific products, provide exact quantities and details.
-            If asked about recommendations, suggest based on current stock levels.
+            If asked about recommendations or estimations, suggest based on current stock levels.
             """
             
             # Call Bedrock Claude
@@ -147,29 +147,29 @@ def handle_simple_chat(user_message, headers):
             'body': json.dumps({'error': f'Chat failed: {str(e)}'})
         }
 
-def handle_predictions(product_id, headers):
-    """Handle demand predictions for products"""
+def handle_estimations(product_id, headers):
+    """Handle demand estimations for products"""
     try:
         if not product_id:
-            # Get predictions for all low stock items
+            # Get estimations for all low stock items
             stock_data = get_stock_context()
             low_stock = [p for p in stock_data if p['quantity'] <= p['min_threshold']]
             
-            predictions = []
+            estimations = []
             for product in low_stock[:5]:  # Limit to 5 products
-                pred = generate_simple_prediction(product)
-                predictions.append(pred)
+                est = generate_simple_estimation(product)
+                estimations.append(est)
             
             return {
                 'statusCode': 200,
                 'headers': headers,
                 'body': json.dumps({
-                    'predictions': predictions,
-                    'message': f'Predictions for {len(predictions)} low-stock products'
+                    'estimations': estimations,
+                    'message': f'Estimations for {len(estimations)} low-stock products'
                 })
             }
         else:
-            # Get prediction for specific product
+            # Get estimation for specific product
             response = table.get_item(Key={'product_id': product_id})
             if 'Item' not in response:
                 return {
@@ -179,13 +179,13 @@ def handle_predictions(product_id, headers):
                 }
             
             product = response['Item']
-            prediction = generate_simple_prediction(product)
+            estimation = generate_simple_estimation(product)
             
             return {
                 'statusCode': 200,
                 'headers': headers,
                 'body': json.dumps({
-                    'prediction': prediction,
+                    'estimation': estimation,
                     'product_id': product_id
                 })
             }
@@ -194,7 +194,7 @@ def handle_predictions(product_id, headers):
         return {
             'statusCode': 500,
             'headers': headers,
-            'body': json.dumps({'error': f'Prediction failed: {str(e)}'})
+            'body': json.dumps({'error': f'Estimation failed: {str(e)}'})
         }
 
 def handle_recommendations(headers):
@@ -294,13 +294,13 @@ def call_bedrock_claude(prompt):
         print(f"Bedrock error: {e}")
         return f"AI temporarily unavailable. Error: {str(e)}"
 
-def generate_simple_prediction(product):
-    """Generate simple demand prediction for a product"""
+def generate_simple_estimation(product):
+    """Generate simple demand estimation for a product"""
     try:
         current_qty = product['quantity']
         min_threshold = product['min_threshold']
         
-        # Simple prediction algorithm
+        # Simple estimation algorithm
         if current_qty == 0:
             urgency = "Critical"
             days_until_stockout = 0
@@ -322,8 +322,8 @@ def generate_simple_prediction(product):
             'product_id': product['product_id'],
             'product_name': product['name'],
             'current_stock': current_qty,
-            'predicted_weekly_demand': weekly_demand,
-            'predicted_monthly_demand': monthly_demand,
+            'estimated_weekly_demand': weekly_demand,
+            'estimated_monthly_demand': monthly_demand,
             'estimated_days_until_stockout': days_until_stockout,
             'urgency_level': urgency,
             'recommended_action': recommended_action,
@@ -333,6 +333,6 @@ def generate_simple_prediction(product):
         
     except Exception as e:
         return {
-            'error': f'Prediction failed: {str(e)}',
+            'error': f'Estimation failed: {str(e)}',
             'product_id': product.get('product_id', 'unknown')
         }
